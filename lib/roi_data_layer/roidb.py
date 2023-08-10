@@ -111,13 +111,23 @@ def combined_roidb(imdb_names, training=True):
     return imdb.roidb
   
   def get_roidb(imdb_name):
-    imdb = get_imdb(imdb_name)
+    print("666+"+imdb_name)
+    imdb = get_imdb(imdb_name) #直接从相对应的路径中获得影响数据集
+    print("666+" + imdb)
     print('Loaded dataset `{:s}` for training'.format(imdb.name))
+    #method为gt  调用了
+    #哪里调用了gt_roidb？？ 答：imdb.py中的set_proposal_method函数 之后会执行pascal_voc中的gt_roidb不清楚何时执行
+
+    #进入pascal_voc下的gt_roidb函数，
     imdb.set_proposal_method(cfg.TRAIN.PROPOSAL_METHOD)
     print('Set proposal method: {:s}'.format(cfg.TRAIN.PROPOSAL_METHOD))
+    #后续imdb会调用gt_roidb
+    #通过对影像数据集进行操作 生成
     roidb = get_training_roidb(imdb)
     return roidb
 
+  #这是主函数 ]我们可以知道对于每个数据集返回了带有该数据集信息的imdb和包含每张影像感兴趣区域信息的roidb（包括每张影像点目标和影像宽高等信息），事实上roidb属于imdb。
+  #通过[get_roidb(s) for s in imdb_names.split('+')]  roi影像应该是 标注出来的图片 gt框是真值框 其余
   roidbs = [get_roidb(s) for s in imdb_names.split('+')]
   roidb = roidbs[0]
 

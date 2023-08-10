@@ -20,12 +20,32 @@ from model.utils.fsod_logger import FSODLogger
 
 from utils import *
 from model.utils.metaclm import SupConLoss
-
+# import faster-rcnn
     
 if __name__ == '__main__':
     criterion = SupConLoss(temperature=0.07)
-    args = parse_args()
-    print(args)
+    #args = parse_args()
+    #这里直接写死就行 或者写个变量 然后自定义就行
+    dataset = "voc1"
+    flip = True #是否使用翻转的数据
+    net = "hanmcl"
+    lr = 0.001
+    lr_decay_step = 12
+    bs = 4
+    epochs = 10
+    disp_interval = 20
+    save_dir = "models/hANMCL"
+    way = 2
+    shot = 10
+    #
+    custom_args = f"--dataset {dataset} {'--flip' if flip else ''} --net {net} --lr {lr} --lr_decay_step {lr_decay_step} --bs {bs} --epochs {epochs} --disp_interval {disp_interval} --save_dir {save_dir} --way {way} --shot {shot}"
+    # custom_args = "--dataset voc1 --flip --net hanmcl --lr 0.001 --lr_decay_step 12 --bs 4 --epochs 10 --disp_interval 20 --save_dir models/hANMCL --way 2 --shot 10"
+
+    # for i in range(0,len(custom_args),2):
+    #     args = parse_args(str(custom_args[i]+" "+custom_args[i+1]))
+    args = parse_args(custom_args)#改了个函数 可以完成args的手动输入
+
+    print(args.shot)
 
     cfg_from_file(args.cfg_file)
     cfg_from_list(args.set_cfgs)
@@ -46,9 +66,11 @@ if __name__ == '__main__':
         os.makedirs(output_dir)
 
     # prepare dataloader
-    cfg.TRAIN.USE_FLIPPED = args.use_flip
+    cfg.TRAIN.USE_FLIPPED = args.use_flip #是否翻转
     cfg.USE_GPU_NMS = True
-    imdb, roidb, ratio_list, ratio_index = combined_roidb(args.imdb_name)
+    #这个roi数据是怎么生成的呢？
+    #能不能把roi这个东西直接淘汰掉 自己写一个 dataloader 反正就是提供  和别的fewshotloader尽量靠拢就行 因为他没给json
+    imdb, roidb, ratio_list, ratio_index = combined_roidb(args.imdb_name) #ROI数据用来训练
 
 
     dataset = FewShotLoader(roidb, ratio_list, ratio_index, args.batch_size, \

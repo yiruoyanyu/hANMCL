@@ -94,9 +94,9 @@ class _hANMCL(nn.Module):
         self.RCNN_roi_pool = ROIPool((cfg.POOLING_SIZE, cfg.POOLING_SIZE), 1.0/16.0)
         self.RCNN_roi_align = ROIAlign((cfg.POOLING_SIZE, cfg.POOLING_SIZE), 1.0/16.0, 0)
         # few shot rcnn head
-        self.pool_feat_dim = 1024
+        self.pool_feat_dim = 1024      #这个参数是什么 是1024
         self.rcnn_dim = 64
-        self.avgpool = nn.AdaptiveAvgPool2d((7,7))
+        self.avgpool = nn.AdaptiveAvgPool2d((7,7))   #自适应池化   步长和人的大小都是随机的
         self.avgpool2 = nn.AdaptiveAvgPool2d((1, 1))
         
         dim_in = self.pool_feat_dim
@@ -108,7 +108,8 @@ class _hANMCL(nn.Module):
         self.rcnn_unary_layer = nn.Linear(49, 1)
         init.normal_(self.rcnn_unary_layer.weight, std=0.01)
         init.constant_(self.rcnn_unary_layer.bias, 0)
-        
+
+        # rpn_adapt_q1 q2 q3_layer都是一样的 这个的意义在那？ 难道是保存一下？
         self.rpn_adapt_q1_layer = nn.Linear(dim_in, rpn_reduce_dim)
         init.normal_(self.rpn_adapt_q1_layer.weight, std=0.01)
         init.constant_(self.rpn_adapt_q1_layer.bias, 0)
@@ -162,7 +163,7 @@ class _hANMCL(nn.Module):
             self.rcnn_transform_layer = nn.Linear(1024, self.rcnn_dim)
         
         self.output_score_layer = FFN(64* 49, dim_in)
-        self.rcnn_transform_layer2 = nn.Linear(1024, 128)
+        self.rcnn_transform_layer2 = nn.Linear(1024, 128)#线性层 直接获取 1024->128 就是全连接层
         # positional encoding
         self.pos_encoding = pos_encoding
         if pos_encoding:
@@ -181,21 +182,26 @@ class _hANMCL(nn.Module):
         im_info = im_info.data
         gt_boxes = gt_boxes.data
         num_boxes = num_boxes.data
-
+        # 对获取的图像先backbone然后用attention进行进一步提取
         base_feat = self.RCNN_base(im_data)
+        # attention模块是一个卷积型 是ham模块的第一次操作
         base_feat = self.attention(base_feat)
         base_feat = self.attention2(base_feat)
         if self.training:
+            #训练状态 会得到 支持数据集 然后进行相应的操作
+            # 注意张量的size b是什么batchsize   size 1024 20 20分别是什么
             support_ims = support_ims.view(-1, support_ims.size(2), support_ims.size(3), support_ims.size(4))
             support_feats = self.RCNN_base(support_ims)  # [B*2*shot, 1024, 20, 20]
             support_feats = self.attention(support_feats)
             support_feats = self.attention2(support_feats)
+            #经过卷积会获得 get channel
             
 
             support_feats = support_feats.contiguous().view(-1, self.n_way*self.n_shot, support_feats.size(1), support_feats.size(2), support_feats.size(3))
+            #把support_feats变成了5维 且 第二维 way（class） * shot  正样本 有shot张 负样本有(cls-1)*shot
             pos_support_feat = support_feats[:, :self.n_shot, :, :, :].contiguous()  # [B, shot, 1024, 20, 20]
             neg_support_feat = support_feats[:, self.n_shot:self.n_way*self.n_shot, :, :, :].contiguous()
-            
+            #怎么分配 pos 和neg的
             pos_support_feat_pooled = self.avgpool(pos_support_feat.view(-1, 1024, 20, 20))
             neg_support_feat_pooled = self.avgpool(neg_support_feat.view(-1, 1024, 20, 20))
             pos_support_feat_pooled = pos_support_feat_pooled.view(batch_size, self.n_shot, 1024, 7, 7)  # [B, shot, 1024, 7, 7]
@@ -219,7 +225,8 @@ class _hANMCL(nn.Module):
         support_mat = pos_support_feat.transpose(0, 1).view(self.n_shot, batch_size, 1024, -1).transpose(2, 3)
         query_mat = base_feat.view(batch_size, 1024, -1).transpose(1, 2)
         dense_support_feature = []
-
+        #为什么要生成三层 因为权重不断变化所以内容不一样 每次backward对这三层更新的权重不一样 rpn_adapt_q1_layer 正好对应三层fc 全连阶层
+        #q3的值 会和支持集 进行交互
         q1_matrix = self.rpn_adapt_q1_layer(query_mat)  # [B, hw, 256]
         q1_matrix = q1_matrix - q1_matrix.mean(1, keepdim=True)
         
@@ -229,12 +236,12 @@ class _hANMCL(nn.Module):
         q3_matrix = self.rpn_adapt_q3_layer(query_mat)  # [B, hw, 256]
         q3_matrix = q3_matrix - q3_matrix.mean(1, keepdim=True)
         
-        for i in range(self.n_shot):
-            if self.pos_encoding:
+        for i in range(self.n_shot):#n_shot到底是什么参数 shot是一次query 对应多少个支持集
+            if self.pos_encoding:# 对支持特征进行位置编码的处理
                 single_s_mat = self.rpn_pos_encoding_layer(support_mat[i])  # [B, 400, 1024]
             else:
                 single_s_mat = support_mat[i]
-            
+            #k是key的意思 也就是 q-k
             k1_matrix = self.rpn_adapt_k1_layer(single_s_mat)  # [B, hw, 256]
             k1_matrix = k1_matrix - k1_matrix.mean(1, keepdim=True)
             k2_matrix = self.rpn_adapt_k2_layer(single_s_mat)  # [B, hw, 256]
@@ -242,38 +249,43 @@ class _hANMCL(nn.Module):
             
             k3_matrix = self.rpn_adapt_k3_layer(single_s_mat)  # [B, hw, 256]
             k3_matrix = k3_matrix - k3_matrix.mean(1, keepdim=True)
-
+            #矩阵乘法 q1 q2相乘 并且归一化  这个不是一个size里面都是恒定的吗 是否有改进的空间 应该是有的 计算应该会快点
             support_adaptive_attention_weight1 = torch.bmm(q1_matrix, q2_matrix.transpose(1, 2)) / math.sqrt(self.rpn_reduce_dim) 
             support_adaptive_attention_weight1 = F.softmax(support_adaptive_attention_weight1, dim=2)
-            
+            #矩阵乘法 k1 k2相乘 并且归一化
             support_adaptive_attention_weight2 = torch.bmm(k1_matrix, k2_matrix.transpose(1, 2)) / math.sqrt(self.rpn_reduce_dim) 
             support_adaptive_attention_weight2 = F.softmax(support_adaptive_attention_weight2, dim=2)
-
-            support_adaptive_attention_weight3 = torch.bmm(q3_matrix, k3_matrix.transpose(1, 2)) / math.sqrt(self.rpn_reduce_dim) 
+            #矩阵乘法 q3 k3
+            support_adaptive_attention_weight3 = torch.bmm(q3_matrix, k3_matrix.transpose(1, 2)) / math.sqrt(self.rpn_reduce_dim)
             support_adaptive_attention_weight3 = F.softmax(support_adaptive_attention_weight3, dim=2)
-            
+            #q1 q2的乘积和原始query进行乘法
             support_adaptive_attention_feature1 = torch.bmm(support_adaptive_attention_weight1, query_mat)  # [B, hw, 1024]
 
+            #对获得的 结果进行 调整 使之能完成相加 rpn_unary_layer模块 用来干什么的
             unary_term = self.rpn_unary_layer(support_adaptive_attention_weight2)  # [n_roi, 49, 1]
             unary_term = F.softmax(unary_term, dim=1)
+            #二和三融合 k1k2的值和 k3q3的值相加
             support_adaptive_attention_weight = support_adaptive_attention_weight3 + unary_term.transpose(1, 2)
-            
+            # 二和三融合的值 和原始key进行乘法
             support_adaptive_attention_feature2 = torch.bmm(support_adaptive_attention_weight, single_s_mat)  # [B, hw, 1024]
-            
+
+            #这两个结果concat一下 需要看一下 这个的维度 因为有很多个支持集
             support_adaptive_attention_feature = torch.cat([support_adaptive_attention_feature1,
                                                              support_adaptive_attention_feature2],dim=2)
+            #在多次计算之后 dense_support_feature会发生怎么样的变化呢
             dense_support_feature += [support_adaptive_attention_feature]
-        
+
+        #dense_support_feature是由多组 query和key组成的 需要进行调整
         dense_support_feature = torch.stack(dense_support_feature, 0).mean(0)  # [B, hw, 1024]
         dense_support_feature = dense_support_feature.transpose(1, 2).contiguous().view(batch_size, 1024*2, feat_h, feat_w)
-        
+        # 压缩后的特征 主要帮助提出建议 后面也没啥作用
         if self.attention_type == 'concat':
             correlation_feat = dense_support_feature
-        elif self.attention_type == 'product':
+        elif self.attention_type == 'product':#选择是否要进行别的操作
             correlation_feat = base_feat * dense_support_feature
-        
+        #获得图像建议 rcnn_rpn这种都是直接模块化出去的 用的时候直接引用就行
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(correlation_feat, im_info, gt_boxes, num_boxes)
-
+        #这几个 返回值 都是什么意思
         if self.training:
             roi_data = self.RCNN_proposal_target(rois, gt_boxes, num_boxes)
             rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws = roi_data
@@ -289,21 +301,28 @@ class _hANMCL(nn.Module):
             rpn_loss_cls = 0
             rpn_loss_bbox = 0
         rois = Variable(rois)
-
+        #选择align和pool作为输出  roi_align模块 输出是一个feature 需要查看他的维度
         if cfg.POOLING_MODE == 'align':
             pooled_feat = self.RCNN_roi_align(base_feat, rois.view(-1, 5))
         elif cfg.POOLING_MODE == 'pool':
             pooled_feat = self.RCNN_roi_pool(base_feat, rois.view(-1,5))
 
-        # rcnn head
+        # rcnn head  也就是ham模块 这里的输出 应该和 roi之前的输出是一致的
         if self.training:
+            #把之前获取到的特征 全都输入到头中得出最后的结果  输入是 基础特征和建议融合后的特征 然后正样本比较
             bbox_pred, cls_prob, cls_score_all, correlation_feat2 = self.rcnn_head(pooled_feat, pos_support_feat_pooled)
+            # neg feats 是由 池化的特征 和 支持集负样本的特征组成的 pooled主要由基础特征组成数据来源imdata
             _, neg_cls_prob, neg_cls_score_all, neg_correlation_feat2 = self.rcnn_head(pooled_feat, neg_support_feat_pooled)
+            # 获取所有类的概率 正样本类和负样本类
+
+            #连接正样本的概率和负样本的概率
             cls_prob = torch.cat([cls_prob, neg_cls_prob], dim=0)
+            #cls_score_all是什么 neg_cls_score_all 他们的数据特征又是怎么样的 得看rcnn_head这个函数
             cls_score_all = torch.cat([cls_score_all, neg_cls_score_all], dim=0)
             neg_rois_label = torch.zeros_like(rois_label)
             rois_label = torch.cat([rois_label, neg_rois_label], dim=0)
             fg_inds = (rois_label == 1).nonzero().squeeze(-1)
+            # # 将正样本和负样本的相关特征进行堆叠和维度转换  这个是对比学习吗
             roi = torch.stack((correlation_feat2[fg_inds],neg_correlation_feat2[fg_inds]),dim=0)
             roi = roi.permute(1,0,2)
 
@@ -362,6 +381,7 @@ class _hANMCL(nn.Module):
         support_mat = []
         query_mat = []
         batch_size = support_feat.size(0)
+        #这里querymeat的生成和一般的不一样  这个函数 主要生成辅助的支持集 ，但是这里似乎没有支持集 不知道咋搞的
         for query_feat, target_feat in zip(pooled_feat.chunk(batch_size, dim=0), support_feat.chunk(batch_size, dim=0)):
             # query_feat [128, c, 7, 7], target_feat [1, shot, c, 7, 7]
             query_feat = self.attention(query_feat)
@@ -431,7 +451,8 @@ class _hANMCL(nn.Module):
         f1, f2 = torch.split(correlation_feat2, [1024, 1024], dim=1)
         f1 = self.rcnn_transform_layer2(f1)
         f2 = self.rcnn_transform_layer2(f2)
-        
+
+        # corrlation 就是metaclm模块
         correlation_feat2 = torch.cat([f1,f2],dim=1)
         correlation_feat = self.rcnn_transform_layer(correlation_feat)  # [B*128, 49, rcnn_d]
         cls_score = self.output_score_layer(correlation_feat.view(n_roi, -1))
@@ -489,6 +510,7 @@ class hANMCL(_hANMCL):
             resnet.load_state_dict({k:v for k,v in state_dict.items() if k in resnet.state_dict()})
 
         # Build resnet. (base -> top -> head)
+        # 这是一个列表 model.train会对 这个堆叠的一部分进行冻结
         self.RCNN_base = nn.Sequential(resnet.conv1, resnet.bn1, resnet.relu,
             resnet.maxpool,resnet.layer1,resnet.layer2,resnet.layer3)
         self.RCNN_top = nn.Sequential(resnet.layer4)  # 1024 -> 2048
@@ -521,6 +543,7 @@ class hANMCL(_hANMCL):
         if mode:
             # Set fixed blocks to be in eval mode
             self.RCNN_base.eval()
+            # 可能是有部分是固定的？ 然后只有两层需要 设置为train 训练模式以便进行反向传播和参数更新。
             self.RCNN_base[5].train()
             self.RCNN_base[6].train()
 

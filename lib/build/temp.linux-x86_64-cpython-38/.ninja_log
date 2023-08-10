@@ -1,0 +1,7 @@
+# ninja log v5
+0	9714	1690276432799227741	/home/hch/pycharm_project/hANMCL/lib/build/temp.linux-x86_64-cpython-38/home/hch/pycharm_project/hANMCL/lib/model/csrc/cpu/ROIAlign_cpu.o	3a760e3d2b181e75
+0	9888	1690276432971225328	/home/hch/pycharm_project/hANMCL/lib/build/temp.linux-x86_64-cpython-38/home/hch/pycharm_project/hANMCL/lib/model/csrc/cpu/nms_cpu.o	9af72634f8d37529
+0	11988	1690276435067195930	/home/hch/pycharm_project/hANMCL/lib/build/temp.linux-x86_64-cpython-38/home/hch/pycharm_project/hANMCL/lib/model/csrc/vision.o	13ea1791d46c706
+1	9679	1690276445031056176	/home/hch/pycharm_project/hANMCL/lib/build/temp.linux-x86_64-cpython-38/home/hch/pycharm_project/hANMCL/lib/model/csrc/cpu/ROIAlign_cpu.o	fedc7fb7c741d3f6
+1	9746	1690276445099055223	/home/hch/pycharm_project/hANMCL/lib/build/temp.linux-x86_64-cpython-38/home/hch/pycharm_project/hANMCL/lib/model/csrc/cpu/nms_cpu.o	140fd46cc1608d41
+1	11725	1690276447071027564	/home/hch/pycharm_project/hANMCL/lib/build/temp.linux-x86_64-cpython-38/home/hch/pycharm_project/hANMCL/lib/model/csrc/vision.o	d444c8d6419caf8a

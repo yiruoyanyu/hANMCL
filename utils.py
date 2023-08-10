@@ -1,4 +1,6 @@
 import argparse
+import shlex
+
 import torch
 import cv2
 import os
@@ -17,7 +19,7 @@ from model.framework.hanmcl import hANMCL
 from pycocotools.coco import COCO
 
 
-def parse_args():
+def parse_args(args_strs):
     parser = argparse.ArgumentParser(description='Train a Fast R-CNN network')
     # net and dataset
     parser.add_argument('--dataset', dest='dataset', help='training dataset', default='pascal_voc', type=str)
@@ -63,7 +65,8 @@ def parse_args():
     parser.add_argument('--sup', dest='ft_sup', help='directory of support images', default='seed1/1shot_image_novel', type=str)
     parser.add_argument('--seed', dest='seed', help='num of support seed', default='seed1', type=str)
     parser.add_argument('--shots', dest='shots', help='num of support shots', default='1shots', type=str)
-    args = parser.parse_args()
+    # parse_args可以进行 参数的添加 只需要在这里进行更新即可
+    args = parser.parse_args(shlex.split(args_strs))
     
 
     # parse dataset
@@ -83,7 +86,7 @@ def parse_args():
     elif args.dataset == "pascal_voc_0712":
         args.imdb_name = "voc_2007_trainval+voc_2012_trainval"
         args.imdbval_name = "voc_2007_test"
-        
+        8
     #train COCO
     elif args.dataset == "coco_base":
         args.imdb_name = "coco_60_set1"
