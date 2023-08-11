@@ -86,7 +86,7 @@ def parse_args(args_strs):
     elif args.dataset == "pascal_voc_0712":
         args.imdb_name = "voc_2007_trainval+voc_2012_trainval"
         args.imdbval_name = "voc_2007_test"
-        8
+
     #train COCO
     elif args.dataset == "coco_base":
         args.imdb_name = "coco_60_set1"
@@ -108,11 +108,11 @@ def parse_args(args_strs):
     elif args.dataset == "val2014_base":
         args.imdbval_name = "coco_20_set2"
         
-    #train VOC split1, split2, split3    
+    #train VOC split1, split2, split3  这里应该是15呀 meta training 的时候肯定只有15个类
     elif args.dataset == "voc1":
-        args.imdb_name = "pascal_5_set1"
+        args.imdb_name = "pascal_15_set1"
     elif args.dataset == "voc2":
-        args.imdb_name = "pascal_5_set2"
+        args.imdb_name = "pascal_15_set2"
     elif args.dataset == "voc3":
         args.imdb_name = "pascal_5_set3"
         

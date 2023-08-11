@@ -19,7 +19,7 @@ for year in ['seed1', 'seed2','seed3', 'seed4','seed5', 'seed6','seed7', 'seed8'
     for n in ['pascal']:
         name = 'pascal_ft_{}_{}'.format(year, split)
         __sets[name] = (lambda split=split, year=year: pascal_split(split, year))
-    
+    #pascal_split(1shots_seed1) 可以使用不同的种子
 
 # coco 20 evaluation
 for year in ['set1', 'set2']:
@@ -48,6 +48,7 @@ for year in ['set3']:
     __sets[name] = (lambda split=split, year=year: pascal_split(split, year))   
 
 # voc 15 training
+# meta training 的时候用了15个类  pascal_5_set1
 for year in ['set1']:
   for split in ['15']:
     name = 'pascal_{}_{}'.format(split, year)

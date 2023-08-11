@@ -18,7 +18,7 @@ def prepare_roidb(imdb):
   recorded.
   """
 
-  roidb = imdb.roidb
+  roidb = imdb.roidb #会直接对roidb进行影响
   if not (imdb.name.startswith('coco')):
     sizes = [PIL.Image.open(imdb.image_path_at(i)).size
          for i in range(imdb.num_images)]
@@ -26,7 +26,7 @@ def prepare_roidb(imdb):
     roidb[i]['img_id'] = imdb.image_id_at(i)
     roidb[i]['image'] = imdb.image_path_at(i)
     if not (imdb.name.startswith('coco')):
-      roidb[i]['width'] = sizes[i][0]
+      roidb[i]['width'] = sizes[i][0]    #如果不是coco数组 则通过 PIL获得img的大小 并且设置roidb的图片大小
       roidb[i]['height'] = sizes[i][1]
     # need gt_overlaps as a dense array for argmax
     # (num_obj, num_class)
@@ -34,9 +34,9 @@ def prepare_roidb(imdb):
     # max overlap with gt over classes (columns)
     max_overlaps = gt_overlaps.max(axis=1)
     # gt class that had the max overlap
-    max_classes = gt_overlaps.argmax(axis=1)
-    roidb[i]['max_classes'] = max_classes
-    roidb[i]['max_overlaps'] = max_overlaps
+    max_classes = gt_overlaps.argmax(axis=1)  #一个列表 roi对哪个类别更相似
+    roidb[i]['max_classes'] = max_classes # 最可能的解
+    roidb[i]['max_overlaps'] = max_overlaps# 与哪个gt重叠区域 更大也是个列表函数
     # sanity checks
     # max overlap of 0 => class should be zero (background)
     zero_inds = np.where(max_overlaps == 0)[0]
@@ -128,6 +128,7 @@ def combined_roidb(imdb_names, training=True):
 
   #这是主函数 ]我们可以知道对于每个数据集返回了带有该数据集信息的imdb和包含每张影像感兴趣区域信息的roidb（包括每张影像点目标和影像宽高等信息），事实上roidb属于imdb。
   #通过[get_roidb(s) for s in imdb_names.split('+')]  roi影像应该是 标注出来的图片 gt框是真值框 其余
+  #voc1来说 s的值为pascal_5_set1  此时列表为roidb 是通过getroidb得到的 如果是 imdb
   roidbs = [get_roidb(s) for s in imdb_names.split('+')]
   roidb = roidbs[0]
 
@@ -143,5 +144,5 @@ def combined_roidb(imdb_names, training=True):
     roidb = filter_roidb(roidb)
 
   ratio_list, ratio_index = rank_roidb_ratio(roidb)
-
+  #对roidb进行 最大宽高比的整理 进行排序后的结果 下文有没有用到不确定
   return imdb, roidb, ratio_list, ratio_index

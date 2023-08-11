@@ -15,7 +15,7 @@ np.set_printoptions(threshold=np.inf, linewidth=np.inf)
 
 class FewShotLoader(data.Dataset):
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True, normalize=None, num_way=2, num_shot=5):
-        self._roidb = roidb
+        self._roidb = roidb #存放roi_gt的 列表 内部是字典吧 可以print一下
         self._num_classes = num_classes
         print(num_classes)
         self.trim_height = cfg.TRAIN.TRIM_HEIGHT
@@ -25,7 +25,7 @@ class FewShotLoader(data.Dataset):
         self.normalize = normalize
         self.ratio_list = ratio_list
         self.ratio_index = ratio_index
-        self.batch_size = batch_size
+        self.batch_size = batch_size  #一般设置为4
         self.data_size = len(self.ratio_list)
 
         self.support_size_threshold = 64
@@ -38,9 +38,11 @@ class FewShotLoader(data.Dataset):
         # ex. [0.5, 0.5, 0.7, 0.8, 1.5, 1.6, 2., 2.] -> [0.5, 0.5, 0.7, 0.7, 1.6, 1.6, 2., 2.]
         ##############################
         self.ratio_list_batch = torch.Tensor(self.data_size).zero_()
-
+        #roi的数量 / 一个batch_size就是 那啥
         num_batch = int(np.ceil(len(ratio_index) / batch_size))
         for i in range(num_batch):
+            #对每个批次 进行长宽比 的设置 为什么不设置所有的呢 因为怕差距太大了，所以一批一批进行设置 这个思想非常好
+            #并且由于对ratio排过序 所以左边最小
             left_idx = i*batch_size
             right_idx = min((i+1)*batch_size-1, self.data_size-1)
             if ratio_list[right_idx] < 1:
@@ -52,30 +54,35 @@ class FewShotLoader(data.Dataset):
             else:
                 # for ratio cross 1, we make it to be 1.
                 target_ratio = 1
+            #让一个batch中的恒纵比尽量保持一致，然后估计会对长宽后面进行乘除
             self.ratio_list_batch[left_idx:(right_idx+1)] = target_ratio
-
+        #ratio_list指的是 什么宽高比 一整张图片的宽高比
         ##############################
         # prepare few shot support pool
         ##############################
         threshold = self.support_size_threshold
+        #每个类的 元素是 _info = {'roidb_idx': roidb_idx, 'box': box} 哪张Img和 哪个box roidb[i]中包含的ratio发生了变化
         self.support_db = []  # list[class_idx] = [box_info_1, box_info_2, ...]
-        for i in range(self._num_classes):
+        for i in range(self._num_classes): #给所有的类建立分组支持池
             self.support_db.append([])
 
         for roidb_idx, _roidb in enumerate(self._roidb):
+            #因为roi_db是一张图像 寻找图像中roi_gt的值
+
             if _roidb['flipped'] == True:
                 continue
             gt_inds = np.where((_roidb['gt_classes'] != 0) & np.all(_roidb['gt_overlaps'].toarray() > -1.0, axis=1))[0]
             boxes = np.empty((len(gt_inds), 5), dtype=np.float32)
+            # 获取 roidb中boxes 中的gt_inds的数据 那些被排除的不要
             boxes[:, 0:4] = _roidb['boxes'][gt_inds, :]  # note: boxes have not been scaled
-            boxes[:, 4] = _roidb['gt_classes'][gt_inds]
-            for i in range(len(gt_inds)):
-                box = boxes[i, 0:4]
+            boxes[:, 4] = _roidb['gt_classes'][gt_inds]# boxes的所有行的第一列 变为 roidb中boxes 中的gt_inds 的classes数据
+            for i in range(len(gt_inds)):#遍历这张图像中的所有值 并且放入进去
+                box = boxes[i, 0:4] #表示取boxes数组的第i行中的前四个元素
                 box_cls_idx = int(boxes[i, 4])
                 box_w = box[2] - box[0]
                 box_h = box[3] - box[1]
                 if box_w < threshold or box_h < threshold or box_w > 2*box_h or box_h > 2*box_w:
-                    continue 
+                    continue  # 遍历内部的框 如果框过于离谱则跳过
                 _info = {'roidb_idx': roidb_idx, 'box': box}
                 self.support_db[box_cls_idx].append(_info)
 
@@ -85,6 +92,7 @@ class FewShotLoader(data.Dataset):
         # in training, for example, the index feed to dataloader may be n1
         # but the img ID may be n2, due to the order of imgs is sorted by ratios 
         # so we need to get the true index by self.ratio_index[index]
+        # img的顺序 发生了变化
         ##############################
         if self.training:
             index_ratio = int(self.ratio_index[index])
@@ -92,6 +100,7 @@ class FewShotLoader(data.Dataset):
             index_ratio = index
 
         # though it is called minibatch, in fact it contains only one img here
+        #这里只有一张图片
         minibatch_db = [self._roidb[index_ratio]]
         blobs = get_minibatch(minibatch_db)  # [n_box, 5]
         data = torch.from_numpy(blobs['data'])
@@ -183,6 +192,8 @@ class FewShotLoader(data.Dataset):
         #################
         # padding the input image to fixed size for each group 
         # if the image need to crop, crop to the target size.
+
+        #怎么设置query的
         np.random.shuffle(blobs['gt_boxes'])
         gt_boxes = torch.from_numpy(blobs['gt_boxes'])
         ratio = self.ratio_list_batch[index]

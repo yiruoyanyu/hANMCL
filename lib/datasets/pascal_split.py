@@ -25,23 +25,24 @@ from pycocotools.cocoeval import COCOeval
 from pycocotools import mask as COCOmask
 
 class pascal_split(imdb):
-  def __init__(self, image_set, year):
+  def __init__(self, image_set, year): # 15_set1
+    # imdb初始化一个 pascal set1 15
     imdb.__init__(self, 'pascal_' + year + '_' + image_set)
     # COCO specific config options
     self.config = {'use_salt': True,
                    'cleanup': True}
     # name, paths
     self._year = year
-    self._image_set = image_set
+    self._image_set = image_set  #15为什么是 imageset 反正这篇代码肯定是在别人基础上瞎几把改的 真臭
     self._data_path = osp.join(cfg.DATA_DIR, 'pascal')
     # load COCO API, classes, class <-> id mappings
-    self._COCO = COCO(self._get_ann_file())
-    cats = self._COCO.loadCats(self._COCO.getCatIds())
+    self._COCO = COCO(self._get_ann_file()) #本来是基于fasterrcnn的 但是后面直接用coco完成了一系列的操作 不需要txt文件了
+    cats = self._COCO.loadCats(self._COCO.getCatIds()) #cats是一个字典 然后也有名字 反正是根据类别完成分类
     self._classes = tuple(['__background__'] + [c['name'] for c in cats])
-    self._class_to_ind = dict(list(zip(self.classes, list(range(self.num_classes)))))
+    self._class_to_ind = dict(list(zip(self.classes, list(range(self.num_classes))))) #将id 和 class对应
     self._class_to_coco_cat_id = dict(list(zip([c['name'] for c in cats],
                                                self._COCO.getCatIds())))
-    self._image_index = self._load_image_set_index()
+    self._image_index = self._load_image_set_index() #这里读取test.txt/train.txt得知需要用到哪些图片 因为变成了coco格式所以不需要 再搞了
     # Default to roidb handler
     self.set_proposal_method('gt')
     self.competition_mode(False)
@@ -65,7 +66,7 @@ class pascal_split(imdb):
     # do not have gt annotations)
     self._gt_splits = ('train', 'val', 'minival')
 
-  def _get_ann_file(self):
+  def _get_ann_file(self):#获得注释文件  有没有这样的注释文件 我想是有的 但是命名格式不是这个 总体的就行
     print('herheeh : ',self._image_set)
     if self._image_set == '3way':
       return osp.join(self._data_path, 'annotations', 'coco20_3way', 'instances_' + self._year + '.json')
