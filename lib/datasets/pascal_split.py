@@ -81,7 +81,7 @@ class pascal_split(imdb):
       return osp.join(self._data_path, 'annotations', 'pascal5_evaluate', 'test_split3.json')
 
     elif self._year == 'set1' and self._image_set == '15':
-      return osp.join(self._data_path, 'annotations', 'pascal15_train', 'train_split1.json')
+      return osp.join(self._data_path, 'annotations', 'pascal15_train', 'train_split1_metadetr.json')
     elif self._year == 'set2' and self._image_set == '15':
       return osp.join(self._data_path, 'annotations', 'pascal15_train', 'train_split2.json')
     elif self._year == 'set3' and self._image_set == '15':
@@ -116,14 +116,14 @@ class pascal_split(imdb):
     """
     return self._image_index[i]
 
-  def image_path_from_index(self, index):
+  def image_path_from_index(self, index): #这是设定 imag的函数
     """
     Construct an image path from the image's "index" identifier.
     """
     #im_ann = self._COCO.loadImgs(index)[0]
     #filename = im_ann['file_name']
     #print(filename)
-    
+    #self._year == 'set1' and self._image_set == '15'
     # Example image path for index=119993:
     #   images/train2014/COCO_train2014_000000119993.jpg
     if self._image_set == '3way' or self._image_set == '5way':
@@ -136,16 +136,23 @@ class pascal_split(imdb):
                   str(index).zfill(12) + '.jpg')
       image_path = osp.join(self._data_path, 'images',
                             'val2014', file_name)
-    elif self._image_set == '1' or '2' or '3':
-      im_ann = self._COCO.loadImgs(index)[0]
-      file_name = im_ann['file_name']
-      image_path = osp.join(self._data_path, 'images',
-                            'train2014', file_name)
+    # elif self._image_set == '1' or '2' or '3': #什么rz代码 难崩 '2'和'3'肯定是true
+    #   print(self._image_set)
+    #   im_ann = self._COCO.loadImgs(index)[0]
+    #   file_name = im_ann['file_name']
+    #   image_path = osp.join(self._data_path, 'images',
+    #                         'train2014', file_name)
     elif self._image_set == 'shot':
       file_name = ('COCO_' + 'train2014' + '_' +
                   str(index).zfill(12) + '.jpg')
       image_path = osp.join(self._data_path, 'images',
                             'train2014', file_name)
+    elif self._image_set == '15':#这里自己写的初始化的代码
+      im_ann = self._COCO.loadImgs(index)[0]
+      # print(im_ann)
+      file_name = im_ann['file_name']
+      image_path = osp.join(self._data_path, 'images',
+                            'trainval0712', file_name)
     else:
       raise Exception(f'set not defined {self._image_set}')
     assert osp.exists(image_path), \

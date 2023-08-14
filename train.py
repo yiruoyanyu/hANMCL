@@ -55,7 +55,7 @@ if __name__ == '__main__':
     np.random.seed(random_seed)
     random.seed(random_seed)
     torch.manual_seed(random_seed)
-    torch.cuda.manual_seed_all(random_seed)
+    torch.cuda.manual_seed_all(random_seed) #这个好像没关系
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     cfg.CUDA = True
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                             sampler=sampler_batch, num_workers=args.num_workers)
 
-    # initilize the tensor holders
+    # initilize the tensor holders  把这些参数 全都获取 并放到gpu上去
     holders = prepare_var(support=True)
     im_data = holders[0]
     im_info = holders[1]
@@ -95,7 +95,8 @@ if __name__ == '__main__':
     pre_weight = False if args.resume else True
     classes = ['fg', 'bg']
     model = get_model(args.net, pretrained=pre_weight, way=args.way, shot=args.shot, classes=classes)
-    model.cuda()
+    #有gpu则放到cuda上，没有则注释掉
+    #model.cuda()
 
     # optimizer
     lr = cfg.TRAIN.LEARNING_RATE

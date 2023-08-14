@@ -33,7 +33,7 @@ for year in ['set1']:
     name = 'coco_{}_{}'.format(split, year)
     __sets[name] = (lambda split=split, year=year: coco_split(split, year))
 
-# voc 5 evaluation
+# pascal 5 evaluation
 for year in ['set1']:
   for split in ['5']:
     name = 'pascal_{}_{}'.format(split, year)
@@ -47,7 +47,7 @@ for year in ['set3']:
     name = 'pascal_{}_{}'.format(split, year)
     __sets[name] = (lambda split=split, year=year: pascal_split(split, year))   
 
-# voc 15 training
+# pascal 15 training
 # meta training 的时候用了15个类  pascal_5_set1
 for year in ['set1']:
   for split in ['15']:

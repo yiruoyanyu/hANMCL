@@ -113,7 +113,7 @@ def combined_roidb(imdb_names, training=True):
   def get_roidb(imdb_name):
     print("666+"+imdb_name)
     imdb = get_imdb(imdb_name) #直接从相对应的路径中获得影响数据集
-    print("666+" + imdb)
+    #print("666+" + imdb)
     print('Loaded dataset `{:s}` for training'.format(imdb.name))
     #method为gt  调用了
     #哪里调用了gt_roidb？？ 答：imdb.py中的set_proposal_method函数 之后会执行pascal_voc中的gt_roidb不清楚何时执行

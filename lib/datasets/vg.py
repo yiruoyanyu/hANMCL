@@ -334,7 +334,7 @@ class vg(imdb):
 
 
     def _do_python_eval(self, output_dir, pickle=True, eval_attributes = False):
-        # We re-use parts of the pascal voc python code for visual genome
+        # We re-use parts of the pascal pascal python code for visual genome
         aps = []
         nposs = []
         thresh = []

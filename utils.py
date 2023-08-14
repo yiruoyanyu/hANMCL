@@ -294,11 +294,11 @@ def prepare_var(support=False):
     im_info = torch.FloatTensor(1)
     num_boxes = torch.LongTensor(1)
     gt_boxes = torch.FloatTensor(1)
-
-    im_data = im_data.cuda()
-    im_info = im_info.cuda()
-    num_boxes = num_boxes.cuda()
-    gt_boxes = gt_boxes.cuda()
+    #有gpu则放到cuda上，没有则注释掉
+    # im_data = im_data.cuda()
+    # im_info = im_info.cuda()
+    # num_boxes = num_boxes.cuda()
+    # gt_boxes = gt_boxes.cuda()
 
     im_data = Variable(im_data)
     im_info = Variable(im_info)
@@ -307,7 +307,8 @@ def prepare_var(support=False):
 
     if support:
         support_ims = torch.FloatTensor(1)
-        support_ims = support_ims.cuda()
+        #有gpu则放到cuda上，没有则注释掉
+        #support_ims = support_ims.cuda()
         support_ims = Variable(support_ims)
         return [im_data, im_info, num_boxes, gt_boxes, support_ims]
     else:

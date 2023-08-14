@@ -80,7 +80,7 @@ class pascal_split(imdb):
       return osp.join(self._data_path, 'annotations', 'pascal5_evaluate', 'test_split3.json')
 
     elif self._year == 'set1' and self._image_set == '15':
-      return osp.join(self._data_path, 'annotations', 'pascal15_train', 'train_split1.json')
+      return osp.join(self._data_path, 'annotations', 'pascal15_train', 'train_split1_hANCML.json')
     elif self._year == 'set2' and self._image_set == '15':
       return osp.join(self._data_path, 'annotations', 'pascal15_train', 'train_split2.json')
     elif self._year == 'set3' and self._image_set == '15':
